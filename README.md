@@ -42,4 +42,4 @@ npm run dev
 
 4. Screenshot do projeto funcionando
 
-![](./screenshots/1.png)
+<img src="./screenshots/1.png" alt="screenshot do projeto"/>
