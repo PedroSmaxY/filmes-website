@@ -70,7 +70,7 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!res.ok) {
-    let body: any = undefined;
+    let body: unknown = undefined;
     const contentType = res.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       body = await res.json().catch(() => undefined);
@@ -78,10 +78,16 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
       const text = await res.text().catch(() => "");
       body = text || undefined;
     }
-    const message =
-      (body && (body.message || body.error || body.title)) ||
-      res.statusText ||
-      "Request failed";
+    let extracted: string | undefined;
+    if (body && typeof body === "object") {
+      const record = body as Record<string, unknown>;
+      extracted = ["message", "error", "title"]
+        .map((k) => record[k])
+        .find((v) => typeof v === "string") as string | undefined;
+    } else if (typeof body === "string") {
+      extracted = body;
+    }
+    const message = extracted || res.statusText || "Request failed";
     throw new ApiError(message, res.status, body);
   }
   const contentType = res.headers.get("content-type") || "";
