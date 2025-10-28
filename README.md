@@ -39,3 +39,7 @@ npm install
 ```bash
 npm run dev
 ```
+
+4. Screenshot do projeto funcionando
+
+![](./screenshots/1.png)
