@@ -4,17 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import toast, { Toaster } from "react-hot-toast";
 import {
+  BASE_URL,
   createCustomer,
   createMovie,
   createRental,
   Customer,
   CustomerRequestDTO,
   decreaseCopies,
+  deleteCustomer,
+  deleteMovie,
   getCustomers,
+  getEmployees,
   getMovies,
+  getRentals,
   increaseCopies,
   Movie,
   MovieRequestDTO,
+  RentalResponseDTO,
+  Employee,
   returnRental,
   ApiError,
 } from "../lib/api";
@@ -49,6 +56,8 @@ export default function Home() {
     employeeId: 1,
   });
   const [returnId, setReturnId] = useState<number>(0);
+  const [rentals, setRentals] = useState<RentalResponseDTO[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   const hasData = useMemo(
     () => movies.length > 0 || customers.length > 0,
@@ -59,9 +68,16 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const [m, c] = await Promise.all([getMovies(), getCustomers()]);
+      const [m, c, r, e] = await Promise.all([
+        getMovies(),
+        getCustomers(),
+        getRentals(),
+        getEmployees(),
+      ]);
       setMovies(m);
       setCustomers(c);
+      setRentals(r);
+      setEmployees(e);
     } catch (e: unknown) {
       const msg =
         e instanceof ApiError
@@ -187,6 +203,46 @@ export default function Home() {
     }
   }
 
+  async function handleDeleteMovie(movieId: number) {
+    if (!confirm("Tem certeza que deseja deletar este filme?")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteMovie(movieId);
+      await loadAll();
+      toast.success("Filme deletado");
+    } catch (e: unknown) {
+      const msg =
+        e instanceof ApiError
+          ? `${e.status}: ${e.message}`
+          : (e as Error)?.message;
+      setError(msg || "Erro ao deletar filme");
+      toast.error(msg || "Erro ao deletar filme");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteCustomer(customerId: number) {
+    if (!confirm("Tem certeza que deseja deletar este cliente?")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteCustomer(customerId);
+      await loadAll();
+      toast.success("Cliente deletado");
+    } catch (e: unknown) {
+      const msg =
+        e instanceof ApiError
+          ? `${e.status}: ${e.message}`
+          : (e as Error)?.message;
+      setError(msg || "Erro ao deletar cliente");
+      toast.error(msg || "Erro ao deletar cliente");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleAdjustCopies(movieId: number, delta: number) {
     setLoading(true);
     setError(null);
@@ -222,10 +278,10 @@ export default function Home() {
       <main className="mx-auto max-w-5xl p-6">
         <Toaster position="top-right" />
         <h1 className="text-3xl font-semibold tracking-tight">
-          Locadora - Demo UI
+          Locadora de Filmes
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Conectado em http://localhost:8080
+          Conectado em {BASE_URL}
         </p>
 
         {error ? (
@@ -333,6 +389,12 @@ export default function Home() {
                         >
                           -1
                         </button>
+                        <button
+                          onClick={() => handleDeleteMovie(m.id)}
+                          className="rounded-md bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -399,6 +461,12 @@ export default function Home() {
                           {c.email} • {c.phone}
                         </p>
                       </div>
+                      <button
+                        onClick={() => handleDeleteCustomer(c.id)}
+                        className="rounded-md bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   ))}
                   {customers.length === 0 && (
@@ -448,20 +516,23 @@ export default function Home() {
                   </option>
                 ))}
               </select>
-              <input
-                type="number"
+              <select
                 className="w-full rounded-md border border-zinc-300 bg-white p-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800"
-                placeholder="Employee ID"
                 value={rentalForm.employeeId}
-                min={1}
-                step={1}
                 onChange={(e) =>
                   setRentalForm((s) => ({
                     ...s,
-                    employeeId: Math.max(0, Number(e.target.value || 0)),
+                    employeeId: Number(e.target.value),
                   }))
                 }
-              />
+              >
+                <option value={0}>Funcionário</option>
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name} (#{e.id})
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={handleCreateRental}
                 disabled={
@@ -491,6 +562,117 @@ export default function Home() {
               >
                 Devolver
               </button>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="mb-3 font-medium text-zinc-700 dark:text-zinc-300">
+                Aluguéis Ativos
+              </h3>
+              <div className="divide-y divide-zinc-200 overflow-hidden rounded-md border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+                {rentals
+                  .filter((r) => r.status === "OPEN")
+                  .map((r) => {
+                    const movie = movies.find((m) => m.id === r.movieId);
+                    const customer = customers.find(
+                      (c) => c.id === r.customerId
+                    );
+                    const employee = employees.find(
+                      (e) => e.id === r.employeeId
+                    );
+
+                    return (
+                      <div
+                        key={r.id}
+                        className="flex items-center justify-between gap-3 bg-white p-3 dark:bg-zinc-900"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {movie?.title || `Filme #${r.movieId}`} -{" "}
+                            {customer?.name || `Cliente #${r.customerId}`}
+                          </p>
+                          <p className="truncate text-xs text-zinc-500">
+                            Alugado em:{" "}
+                            {new Date(r.rentalDate).toLocaleDateString()} •
+                            Processado por:{" "}
+                            {employee?.name || `Funcionário #${r.employeeId}`} •
+                            ID: {r.id}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200">
+                            {r.status}
+                          </span>
+                          <button
+                            onClick={() => setReturnId(r.id)}
+                            className="rounded-md bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
+                          >
+                            Devolver
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {rentals.filter((r) => r.status === "OPEN").length === 0 && (
+                  <div className="p-3 text-sm text-zinc-500">
+                    Nenhum aluguel ativo.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="mb-3 font-medium text-zinc-700 dark:text-zinc-300">
+                Aluguéis Finalizados
+              </h3>
+              <div className="divide-y divide-zinc-200 overflow-hidden rounded-md border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+                {rentals
+                  .filter((r) => r.status === "RETURNED")
+                  .map((r) => {
+                    const movie = movies.find((m) => m.id === r.movieId);
+                    const customer = customers.find(
+                      (c) => c.id === r.customerId
+                    );
+                    const employee = employees.find(
+                      (e) => e.id === r.employeeId
+                    );
+
+                    return (
+                      <div
+                        key={r.id}
+                        className="flex items-center justify-between gap-3 bg-white p-3 dark:bg-zinc-900"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {movie?.title || `Filme #${r.movieId}`} -{" "}
+                            {customer?.name || `Cliente #${r.customerId}`}
+                          </p>
+                          <p className="truncate text-xs text-zinc-500">
+                            Alugado em:{" "}
+                            {new Date(r.rentalDate).toLocaleDateString()} •
+                            Devolvido em:{" "}
+                            {r.returnDate
+                              ? new Date(r.returnDate).toLocaleDateString()
+                              : "N/A"}{" "}
+                            • Processado por:{" "}
+                            {employee?.name || `Funcionário #${r.employeeId}`} •
+                            ID: {r.id}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                            {r.status}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {rentals.filter((r) => r.status === "RETURNED").length ===
+                  0 && (
+                  <div className="p-3 text-sm text-zinc-500">
+                    Nenhum aluguel finalizado.
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         </div>

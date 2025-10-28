@@ -45,13 +45,23 @@ export type Rental = {
   returnDate: string | null; // date
 };
 
+export type RentalResponseDTO = {
+  id: number;
+  movieId: number;
+  customerId: number;
+  employeeId: number;
+  rentalDate: string; // date
+  returnDate: string | null; // date
+  status: "OPEN" | "RETURNED";
+};
+
 export type RentalRequestDTO = {
   customerId: number;
   movieId: number;
   employeeId: number;
 };
 
-const BASE_URL = "http://localhost:8080";
+export const BASE_URL = "http://localhost:8080";
 
 export class ApiError extends Error {
   status: number;
@@ -110,11 +120,11 @@ export const updateMovie = (id: number, body: MovieRequestDTO) =>
 export const deleteMovie = (id: number) =>
   http<void>(`/api/movies/${id}`, { method: "DELETE" });
 export const increaseCopies = (id: number, copies: number) =>
-  http<void>(`/api/movies/${id}/increase-copies?copies=${copies}`, {
+  http<void>(`/api/movies/${id}/increase-copies/${copies}`, {
     method: "PATCH",
   });
 export const decreaseCopies = (id: number, copies: number) =>
-  http<void>(`/api/movies/${id}/decrease-copies?copies=${copies}`, {
+  http<void>(`/api/movies/${id}/decrease-copies/${copies}`, {
     method: "PATCH",
   });
 
@@ -140,7 +150,11 @@ export const findCustomerByPhone = (phone: string) =>
   http<Customer>(`/api/employees/customers/phone/${encodeURIComponent(phone)}`);
 
 // Rentals
+export const getRentals = () => http<RentalResponseDTO[]>("/api/rentals");
 export const createRental = (body: RentalRequestDTO) =>
   http<Rental>("/api/rentals", { method: "POST", body: JSON.stringify(body) });
 export const returnRental = (rentalId: number) =>
   http<Rental>(`/api/rentals/${rentalId}/return`, { method: "PATCH" });
+
+// Employees
+export const getEmployees = () => http<Employee[]>("/api/employees");
