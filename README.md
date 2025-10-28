@@ -21,8 +21,19 @@ com backend em Java e Spring Boot disponivel em https://github.com/PedroSmaxY/fi
 
 ## Como Executar
 
-1. Clone o repositório
+1. Clone e entre no repositório
+
+```bash
+git clone https://github.com/PedroSmaxY/filmes-website.git
+cd filmes-website
+```
+
 2. Instale as dependências
+
+```bash
+npm install
+```
+
 3. Execute o projeto
 
 ```bash
