@@ -50,7 +50,7 @@ export default function Home() {
       <main className="mx-auto max-w-5xl p-6">
         <Toaster position="top-right" />
         <h1 className="text-3xl font-semibold tracking-tight">
-          Locadora de Filmes
+          Gestão de Locadora de Filmes 🎬
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Conectado em {BASE_URL}
